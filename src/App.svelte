@@ -1,65 +1,133 @@
 <script lang="ts">
-  import logo from "./assets/svelte.png";
-  import Counter from "./lib/Counter.svelte";
+  import "@fontsource/material-icons";
+  import { onMount, setContext } from "svelte";
+
+  import { writable, Writable } from "svelte/store";
+  import Creator from "./Creator.svelte";
+  import type { AuthData } from "./utils";
+
+  let authStatus: Writable<null | "waiting" | AuthData> = writable(null);
+
+  setContext("authStatus", authStatus);
+
+  async function login() {
+    try {
+      if ($authStatus !== null) return;
+      $authStatus = "waiting";
+      const redirect_uri = new URL(document.location.href);
+      redirect_uri.search = "";
+      redirect_uri.hash = "";
+      redirect_uri.pathname = import.meta.env.BASE_URL + "callback.html";
+      const state = Math.random().toString();
+      const params = new URLSearchParams({
+        client_id: import.meta.env.VITE_G_CLIENTID as string,
+        redirect_uri: redirect_uri.toString(),
+        response_type: "token",
+        scope:
+          "https://www.googleapis.com/auth/devstorage.read_only https://www.googleapis.com/auth/devstorage.read_write https://www.googleapis.com/auth/cloudplatformprojects.readonly",
+        state,
+      });
+      const authWindow = window.open(
+        "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString(),
+        "GoogleLoginPopup",
+        "popup"
+      );
+      let done = false;
+      $authStatus = await Promise.race([
+        new Promise<AuthData>(async (resolve) => {
+          const listener = ({ data }) => {
+            const parsed = JSON.parse(data);
+            if (parsed.state === state) {
+              delete parsed.state;
+              const expiry = new Date();
+              expiry.setSeconds(
+                expiry.getSeconds() + parseInt(parsed.expires_in)
+              );
+              parsed.expires_at = expiry;
+              delete parsed.expires_in;
+              resolve(parsed);
+              window.removeEventListener("message", listener);
+            }
+          };
+          window.addEventListener("message", listener);
+        }),
+        new Promise<never>((_, reject) => {
+          const loop = () => {
+            if (done) return;
+            if (authWindow.closed) {
+              reject();
+            } else {
+              setTimeout(loop, 500);
+            }
+          };
+          loop();
+        }),
+      ]).finally(() => {
+        done = true;
+        authWindow.close();
+      });
+    } catch (e) {
+      $authStatus = null;
+    }
+  }
+
+  function logout() {
+    if (typeof $authStatus !== "object") return;
+    const token = $authStatus.access_token;
+    $authStatus = null;
+    fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      body: new URLSearchParams({ token }),
+      headers: {
+        "Content-type": "application/x-www-form-urlencoded",
+      },
+    });
+  }
+
+  onMount(() => {
+    const initialVal = JSON.parse(
+      localStorage.getItem("gcs-gallery-auth") ?? "null"
+    );
+    authStatus.set(
+      initialVal === "waiting" ||
+        (initialVal !== null && new Date() > new Date(initialVal.expires_at))
+        ? null
+        : initialVal
+    );
+
+    const unsub = authStatus.subscribe((val) => {
+      localStorage.setItem("gcs-gallery-auth", JSON.stringify(val));
+    });
+    const listener = () =>
+      authStatus.set(
+        JSON.parse(localStorage.getItem("gcs-gallery-auth") ?? "null")
+      );
+    window.addEventListener("storage", listener);
+
+    return () => {
+      unsub();
+      window.removeEventListener("storage", listener);
+    };
+  });
 </script>
 
-<main>
-  <img src={logo} alt="Svelte Logo" />
-  <h1>Hello Typescript!</h1>
-
-  <Counter />
-
+{#if $authStatus === null}
   <p>
-    Visit <a href="https://svelte.dev">svelte.dev</a> to learn how to build Svelte
-    apps.
+    <button on:click={login}>Log in with Google</button>
   </p>
-
+{:else if $authStatus === "waiting"}
+  <p>Please authenticate in the popup</p>
+{:else}
   <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme">SvelteKit</a> for
-    the officially supported framework, also powered by Vite!
+    <button on:click={logout}>Log out</button>
   </p>
-</main>
+  <Creator />
+{/if}
 
-<style>
-  :root {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  }
-
-  main {
-    text-align: center;
-    padding: 1em;
-    margin: 0 auto;
-  }
-
-  img {
-    height: 16rem;
-    width: 16rem;
-  }
-
-  h1 {
-    color: #ff3e00;
-    text-transform: uppercase;
-    font-size: 4rem;
-    font-weight: 100;
-    line-height: 1.1;
-    margin: 2rem auto;
-    max-width: 14rem;
-  }
-
-  p {
-    max-width: 14rem;
-    margin: 1rem auto;
-    line-height: 1.35;
-  }
-
-  @media (min-width: 480px) {
-    h1 {
-      max-width: none;
-    }
-
-    p {
-      max-width: none;
-    }
-  }
-</style>
+<footer>
+  <p>
+    gcs-gallery: &copy; 2022 Matěj Volf. <a
+      href="https://github.com/mvolfik/gcs-gallery">View source on GitHub</a
+    >.
+  </p>
+</footer>
