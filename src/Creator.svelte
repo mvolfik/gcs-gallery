@@ -1,6 +1,7 @@
 <script lang="ts">
   import GalleryAppSSR from "../generated/ssrRender";
   import GalleryAppCode from "../generated/GalleryApp.svelte.js?raw";
+  import PhotoSwipeCss from "photoswipe/dist/photoswipe.css?raw";
   import IndexTemplate from "./gallery/index.html?raw";
   import {
     AuthData,
@@ -42,7 +43,8 @@
     } = GalleryAppSSR.render(props);
 
     // split to workaround Svelte parsing bug
-    const fullHead = head + "<sty" + "le>" + css + "</sty" + "le>";
+    const fullHead =
+      head + "<sty" + "le>" + css + PhotoSwipeCss + "</sty" + "le>";
 
     let js = buildJs(props);
 

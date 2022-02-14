@@ -4,6 +4,22 @@ const { rollup } = require("rollup");
 const { nodeResolve } = require("@rollup/plugin-node-resolve");
 const { terser } = require("rollup-plugin-terser");
 
+const dummyCssImportPlugin = {
+  name: "dummy-css-import-plugin",
+  resolveId(id) {
+    if (id === "photoswipe/dist/photoswipe.css") {
+      return id;
+    }
+    return null;
+  },
+  load(id) {
+    if (id === "photoswipe/dist/photoswipe.css") {
+      return "";
+    }
+    return null;
+  },
+};
+
 async function buildOnce() {
   const commonSvelteConfig = {
     hydratable: true,
@@ -13,8 +29,15 @@ async function buildOnce() {
 
   const bundle = await rollup({
     input: "src/gallery/GalleryApp.svelte",
-    external: ["svelte/internal"],
+    external: [
+      "svelte",
+      "svelte/internal",
+      "svelte/store",
+      "photoswipe/dist/photoswipe.esm",
+      "photoswipe/dist/photoswipe-lightbox.esm",
+    ],
     plugins: [
+      dummyCssImportPlugin,
       rollupPluginSvelte({
         emitCss: false,
         compilerOptions: {
@@ -32,6 +55,7 @@ async function buildOnce() {
   const domBundle = await rollup({
     input: "src/gallery/GalleryApp.svelte",
     plugins: [
+      dummyCssImportPlugin,
       nodeResolve(),
       rollupPluginSvelte({
         emitCss: false,

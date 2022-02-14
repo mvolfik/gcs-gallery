@@ -1,4 +1,5 @@
 <script>
+  import Gallery from "svelte-photoswipe";
   export let items;
   export let title;
 </script>
@@ -9,9 +10,7 @@
 
 <h3>{title}</h3>
 
-{#each items as item, i}
-  <p class="item">{i}: {JSON.stringify(item)}</p>
-{/each}
+<Gallery images={items} styling="flex" />
 
 <footer>
   <p>
