@@ -98,7 +98,6 @@ export async function processImage(
     },
   };
 }
-console.log(processImage);
 
 export function relPath(base: string, name: string) {
   if (name.startsWith("/"))

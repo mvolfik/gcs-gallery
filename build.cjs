@@ -1,57 +1,51 @@
-const svelte = require("svelte/compiler");
+const rollupPluginSvelte = require("rollup-plugin-svelte");
 const fs = require("node:fs/promises");
-const esbuild = require("esbuild");
-
-async function mkdir(path) {
-  return fs.mkdir(path).catch(() => {});
-}
-
-async function buildDomCode(code) {
-  await fs.writeFile("generated/GalleryApp.svelte.js", code);
-
-  const result = await esbuild
-    .build({
-      entryPoints: ["generated/GalleryApp.svelte.js"],
-      bundle: true,
-      write: true,
-      format: "esm",
-      target: "es6",
-      outfile: "generated/GalleryApp.svelte.js",
-      allowOverwrite: true,
-    })
-    .catch((e) => e);
-  if (result.errors?.length > 0) {
-    throw new Error(
-      "Errors during build: " + result.errors.map((e) => e.text).join(", ")
-    );
-  }
-}
+const { rollup } = require("rollup");
+const { nodeResolve } = require("@rollup/plugin-node-resolve");
+const { terser } = require("rollup-plugin-terser");
 
 async function buildOnce() {
-  const src = await fs.readFile("src/gallery/GalleryApp.svelte", {
-    encoding: "utf-8",
-  });
-
-  const commonConfig = {
-    filename: "GalleryApp.svelte",
-    format: "esm",
+  const commonSvelteConfig = {
     hydratable: true,
     css: false,
     enableSourcemap: false,
   };
-  const dom = svelte.compile(src, { ...commonConfig, generate: "dom" });
-  const ssr = svelte.compile(src, { ...commonConfig, generate: "ssr" });
-  if (dom.css.code != ssr.css.code) {
-    throw new Error("DOM and SSR generated CSS are different");
-  }
-  await mkdir("generated").then(() => {
-    fs.writeFile(
-      "generated/ssrRender.js",
-      "// @ts-nocheck\n\n" + ssr.js.code
-    ).catch((e) => console.error("Writing SSR code failed:", e));
-    buildDomCode(dom.js.code).catch((e) => {
-      console.error("Building DOM code failed:", e.message);
-    });
+
+  const bundle = await rollup({
+    input: "src/gallery/GalleryApp.svelte",
+    external: ["svelte/internal"],
+    plugins: [
+      rollupPluginSvelte({
+        emitCss: false,
+        compilerOptions: {
+          ...commonSvelteConfig,
+          generate: "ssr",
+        },
+      }),
+    ],
+  });
+  await bundle.write({
+    file: "generated/ssrRender.js",
+    format: "es",
+  });
+
+  const domBundle = await rollup({
+    input: "src/gallery/GalleryApp.svelte",
+    plugins: [
+      nodeResolve(),
+      rollupPluginSvelte({
+        emitCss: false,
+        compilerOptions: {
+          ...commonSvelteConfig,
+          generate: "dom",
+        },
+      }),
+    ],
+  });
+  await domBundle.write({
+    file: "generated/GalleryApp.svelte.js",
+    format: "es",
+    plugins: [terser()],
   });
 }
 
