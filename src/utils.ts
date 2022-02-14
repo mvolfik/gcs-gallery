@@ -12,7 +12,7 @@ export type AuthData = { access_token: string; expires_at: string };
 export async function queryApi(
   authData: AuthData,
   method: string,
-  url: string,
+  url: string
 ) {
   if (new Date() > new Date(authData.expires_at)) {
     window.location.reload();

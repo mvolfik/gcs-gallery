@@ -54,11 +54,11 @@ async function buildOnce() {
   });
 }
 
-async function main() {
+async function main(watch) {
   await buildOnce();
   console.log("Build successful.");
 
-  if (process.argv.includes("--watch")) {
+  if (watch) {
     console.log(
       "Watching and rebuilding on changes to src/gallery/GalleryApp.svelte..."
     );
@@ -71,4 +71,10 @@ async function main() {
     }
   }
 }
-main().catch((e) => console.error("Build failed: ", e.message));
+if (require.main === module) {
+  main(process.argv.includes("--watch")).catch((e) =>
+    console.error("Build failed: ", e.message)
+  );
+}
+
+module.exports = main;

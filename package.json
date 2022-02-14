@@ -4,9 +4,9 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "node build.cjs --watch & vite --https",
+    "dev": "node build.cjs --watch & vite",
     "build": "node build.cjs && vite build",
-    "preview": "vite preview --https",
+    "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "f": "prettier --write --ignore-path .gitignore ."
   },

@@ -33,8 +33,9 @@
           prefix: path.map((x) => x.name).join("/"),
         })}`,
       dataGetter: (data) => ({
-        fileCount: filterMediaFilenames(data.items?.map((x: any) => x.name) ?? [])
-          .length,
+        fileCount: filterMediaFilenames(
+          data.items?.map((x: any) => x.name) ?? []
+        ).length,
         subfolders: data.prefixes ?? [],
       }),
     },
@@ -91,6 +92,10 @@
         on:click={() => (selectedPath = path.map((x) => x.name).join("/"))}
         >Select</button
       ></pre>
+  {:else if subfolders.length === 0}
+    <pre class="file-count">{prefix}└┄<span class="material-icons"
+        >image_not_supported</span
+      >Empty folder</pre>
   {/if}
 {:catch e}
   <pre class="error">Error: {e}</pre>
