@@ -32,10 +32,12 @@
         "GoogleLoginPopup",
         "popup"
       );
+      if (authWindow === null)
+        throw new Error("Failed to obtain a reference to auth window");
       let done = false;
       $authStatus = await Promise.race([
         new Promise<AuthData>(async (resolve) => {
-          const listener = ({ data }) => {
+          const listener = ({ data }: MessageEvent) => {
             const parsed = JSON.parse(data);
             if (parsed.state === state) {
               delete parsed.state;
@@ -72,7 +74,7 @@
   }
 
   function logout() {
-    if (typeof $authStatus !== "object") return;
+    if ($authStatus === null || $authStatus === "waiting") return;
     const token = $authStatus.access_token;
     $authStatus = null;
     fetch("https://oauth2.googleapis.com/revoke", {

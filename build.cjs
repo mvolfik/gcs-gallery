@@ -45,9 +45,10 @@ async function buildOnce() {
     throw new Error("DOM and SSR generated CSS are different");
   }
   await mkdir("generated").then(() => {
-    fs.writeFile("generated/ssrRender.js", ssr.js.code).catch((e) =>
-      console.error("Writing SSR code failed:", e)
-    );
+    fs.writeFile(
+      "generated/ssrRender.js",
+      "// @ts-nocheck\n\n" + ssr.js.code
+    ).catch((e) => console.error("Writing SSR code failed:", e));
     buildDomCode(dom.js.code).catch((e) => {
       console.error("Building DOM code failed:", e.message);
     });

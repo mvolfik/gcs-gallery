@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 // https://vitejs.dev/config/
 
 const https = {

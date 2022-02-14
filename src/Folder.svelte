@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { Writable } from "svelte/store";
-  import { AuthData, filterMediaFilenames, queryApi } from "./utils";
+  import { AuthData, isMediaFile, queryApi } from "./utils";
 
   const accessors: {
     urlGetter: (path: { name: string }[]) => string;
@@ -10,7 +10,7 @@
     {
       urlGetter: () =>
         "https://cloudresourcemanager.googleapis.com/v1beta1/projects",
-      dataGetter: (data) => ({
+      dataGetter: (data: { projects?: { projectId: string }[] }) => ({
         fileCount: 0,
         subfolders: data.projects?.map((x: any) => x.projectId) ?? [],
       }),
@@ -19,9 +19,9 @@
       urlGetter: ([{ name }]) =>
         "https://storage.googleapis.com/storage/v1/b?project=" +
         encodeURIComponent(name),
-      dataGetter: (data) => ({
+      dataGetter: (data: { items?: { id: string }[] }) => ({
         fileCount: 0,
-        subfolders: data.items?.map((x: any) => x.id) ?? [],
+        subfolders: data.items?.map((x) => x.id) ?? [],
       }),
     },
     {
@@ -30,13 +30,21 @@
           bucket
         )}/o?${new URLSearchParams({
           delimiter: "/",
-          prefix: path.map((x) => x.name).join("/"),
+          prefix: [...path.map((x) => x.name), ""].join("/"),
         })}`,
-      dataGetter: (data) => ({
-        fileCount: filterMediaFilenames(
-          data.items?.map((x: any) => x.name) ?? []
-        ).length,
-        subfolders: data.prefixes ?? [],
+      dataGetter: (data: {
+        items?: { name: string }[];
+        prefixes?: string[];
+      }) => ({
+        fileCount:
+          data.items?.map((x) => x.name).filter(isMediaFile).length ?? 0,
+        subfolders:
+          data.prefixes
+            ?.map((x) => {
+              const parts = x.split("/");
+              return parts[parts.length - 2];
+            })
+            .filter((x) => x !== "thumbnails") ?? [],
       }),
     },
   ];
@@ -51,7 +59,7 @@
 
   const authData: Writable<AuthData> = getContext("authStatus");
 
-  export let selectedPath: null | string;
+  export let selectedPath: null | string[];
   export let path: { name: string; draw: boolean }[];
 
   let expanded: null | string = null;
@@ -89,8 +97,7 @@
     <pre class="file-count">{prefix}└┄<span class="material-icons"
         >burst_mode</span
       >{fileCount} files <button
-        on:click={() => (selectedPath = path.map((x) => x.name).join("/"))}
-        >Select</button
+        on:click={() => (selectedPath = path.map((x) => x.name))}>Select</button
       ></pre>
   {:else if subfolders.length === 0}
     <pre class="file-count">{prefix}└┄<span class="material-icons"
