@@ -10,6 +10,7 @@
     processImage,
     queryApi,
     relPath,
+    throttledPromiseAll,
   } from "./utils";
   import { getContext } from "svelte";
   import type { Writable } from "svelte/store";
@@ -30,10 +31,11 @@
         prefix: [...selectedPath.slice(2), ""].join("/"),
       })}`
     );
-    const items: GalleryData = await Promise.all(
+    const items: GalleryData = await throttledPromiseAll(
       data.items
         ?.filter(({ name }) => isMediaFile(name))
-        .map((imageData) => processImage($authData, imageData)) ?? []
+        .map((imageData) => () => processImage($authData, imageData)) ?? [],
+      5
     );
     const props = { title, items };
     const {

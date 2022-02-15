@@ -99,6 +99,12 @@ export async function processImage(
   };
 }
 
+// console.log(
+//   relPath("/", "bar/foo.js"),
+//   relPath("", "bar/foo.js"),
+//   relPath("bar/", "foo.js"),
+//   relPath("bar/baz.js", "foo.js")
+// ); // all should print "bar/foo.js"
 export function relPath(base: string, name: string) {
   if (name.startsWith("/"))
     throw new Error("Relative name isn't supposed to start with '/'");
@@ -107,9 +113,39 @@ export function relPath(base: string, name: string) {
   return [...parts.slice(0, parts.length - 1), name].join("/");
 }
 
-// console.log(
-//   relPath("/", "bar/foo.js"),
-//   relPath("", "bar/foo.js"),
-//   relPath("bar/", "foo.js"),
-//   relPath("bar/baz.js", "foo.js")
-// ); // all should print "bar/foo.js"
+export function throttledPromiseAll<T>(
+  q: (() => Promise<T>)[],
+  n: number
+): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const running: Promise<void>[] = [];
+    const results: T[] = [];
+    let started = 0;
+    let done = 0;
+    let rejected = false;
+
+    function scheduleNext(slot: number, i?: number, res?: T) {
+      if (rejected) return;
+      if (i !== undefined) {
+        results[i] = res as T;
+        if (++done === q.length) {
+          resolve(results);
+          return;
+        }
+      }
+      if (started === q.length) {
+        return;
+      }
+      const myStart = started++;
+      running[slot] = q[myStart]()
+        .then((res) => scheduleNext(slot, myStart, res))
+        .catch((e) => {
+          rejected = true;
+          reject([myStart, e]);
+        });
+    }
+    for (let j = 0; j < n; j++) {
+      scheduleNext(j);
+    }
+  });
+}
